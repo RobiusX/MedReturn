@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:medreturn/models/auth_user.dart';
 
@@ -36,24 +37,28 @@ void main() {
       expect(updated.isEmailVerified, isTrue);
     });
 
-    test('AuthException maps common Firebase error codes into user-friendly messages', () {
-      final invalidCred = AuthException(
-        'Invalid email or password. Please verify your credentials.',
-        code: 'invalid-credential',
-      );
-      expect(invalidCred.message, contains('Invalid email or password'));
+    test('AuthException maps Firebase authentication errors for users', () {
+      final cases = {
+        'user-not-found': 'Invalid email or password',
+        'wrong-password': 'Invalid email or password',
+        'invalid-credential': 'Invalid email or password',
+        'email-already-in-use': 'already exists',
+        'weak-password': 'too weak',
+        'invalid-email': 'improperly formatted',
+        'network-request-failed': 'Network connection failed',
+        'operation-not-allowed': 'Email/password sign-in is disabled',
+        'too-many-requests': 'Too many failed attempts',
+      };
 
-      final alreadyInUse = AuthException(
-        'An account already exists with this email address.',
-        code: 'email-already-in-use',
-      );
-      expect(alreadyInUse.message, contains('already exists'));
+      for (final entry in cases.entries) {
+        final exception = AuthException.fromFirebaseException(
+          FirebaseAuthException(code: entry.key, message: 'Firebase detail'),
+        );
 
-      final weakPass = AuthException(
-        'Password is too weak. Please choose a stronger password.',
-        code: 'weak-password',
-      );
-      expect(weakPass.message, contains('too weak'));
+        expect(exception.code, entry.key);
+        expect(exception.message, contains(entry.value));
+        expect(exception.message, isNot(contains('Firebase detail')));
+      }
     });
   });
 }

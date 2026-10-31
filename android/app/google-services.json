@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "324145053328",
+    "project_id": "medreturn-v1",
+    "storage_bucket": "medreturn-v1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:324145053328:android:fd2834f128894c13d22215",
+        "android_client_info": {
+          "package_name": "com.example.medreturn"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCIRGLMO2L9KptSKRWXx2nli19K50sAmqY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

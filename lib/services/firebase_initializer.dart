@@ -9,9 +9,13 @@ class FirebaseInitializer {
   FirebaseInitializer._();
 
   static bool _isInitialized = false;
+  static String? _initializationErrorCode;
 
   /// Returns true if Firebase has been successfully initialized.
   static bool get isInitialized => _isInitialized;
+
+  /// The last Firebase initialization error code, if initialization failed.
+  static String? get initializationErrorCode => _initializationErrorCode;
 
   /// Initializes Firebase services if not already initialized.
   static Future<void> initialize({FirebaseOptions? options}) async {
@@ -24,13 +28,28 @@ class FirebaseInitializer {
         await Firebase.initializeApp();
       }
       _isInitialized = true;
-      debugPrint('[FirebaseInitializer] Firebase successfully initialized.');
-    } catch (e) {
-      debugPrint(
-        '[FirebaseInitializer] Notice: Firebase initialization bypassed or deferred ($e). '
-        'Offline mock services will be used until flutterfire configure is executed.',
-      );
+      _initializationErrorCode = null;
+      if (kDebugMode) {
+        debugPrint('[FirebaseInitializer] Firebase initialized successfully.');
+      }
+    } on FirebaseException catch (error, stackTrace) {
+      _initializationErrorCode = error.code;
+      if (kDebugMode) {
+        debugPrint(
+          '[FirebaseInitializer] Initialization failed: '
+          'plugin=${error.plugin}, code=${error.code}, message=${error.message}',
+        );
+        debugPrintStack(stackTrace: stackTrace);
+      }
+    } catch (error, stackTrace) {
+      _initializationErrorCode = error.runtimeType.toString();
+      if (kDebugMode) {
+        debugPrint(
+          '[FirebaseInitializer] Initialization failed: '
+          'type=${error.runtimeType}',
+        );
+        debugPrintStack(stackTrace: stackTrace);
+      }
     }
   }
 }
-

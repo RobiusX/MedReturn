@@ -119,7 +119,13 @@ class AuthException implements Exception {
       case 'network-request-failed':
         return 'Network connection failed. Please check your internet connection.';
       case 'operation-not-allowed':
-        return 'Email/password authentication is not enabled in Firebase Console.';
+        return 'Email/password sign-in is disabled for this Firebase project. '
+            'Enable it in Firebase Console.';
+      case 'app-not-authorized':
+      case 'invalid-api-key':
+      case 'configuration-not-found':
+        return 'Firebase is not configured correctly for this app. '
+            'Check the Firebase project and Android package ID.';
       default:
         return fallbackMessage ??
             'An authentication error occurred. Please try again.';

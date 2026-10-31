@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart' as fb;
+import 'package:flutter/foundation.dart';
 
 import '../models/auth_user.dart';
 import 'auth_service.dart';
@@ -46,10 +47,15 @@ class FirebaseAuthService implements AuthService {
       }
       return AuthUser.fromFirebaseUser(user);
     } on fb.FirebaseAuthException catch (e) {
+      _logFirebaseFailure('signInWithEmailAndPassword', e);
       throw AuthException.fromFirebaseException(e);
-    } catch (e) {
+    } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
-      throw AuthException(e.toString());
+      _logUnexpectedFailure('signInWithEmailAndPassword', e, stackTrace);
+      throw const AuthException(
+        'An unexpected authentication error occurred. Please try again.',
+        code: 'unexpected-error',
+      );
     }
   }
 
@@ -82,10 +88,15 @@ class FirebaseAuthService implements AuthService {
 
       return AuthUser.fromFirebaseUser(user);
     } on fb.FirebaseAuthException catch (e) {
+      _logFirebaseFailure('createUserWithEmailAndPassword', e);
       throw AuthException.fromFirebaseException(e);
-    } catch (e) {
+    } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
-      throw AuthException(e.toString());
+      _logUnexpectedFailure('createUserWithEmailAndPassword', e, stackTrace);
+      throw const AuthException(
+        'An unexpected authentication error occurred. Please try again.',
+        code: 'unexpected-error',
+      );
     }
   }
 
@@ -94,9 +105,14 @@ class FirebaseAuthService implements AuthService {
     try {
       await _auth.sendPasswordResetEmail(email: email.trim());
     } on fb.FirebaseAuthException catch (e) {
+      _logFirebaseFailure('sendPasswordResetEmail', e);
       throw AuthException.fromFirebaseException(e);
-    } catch (e) {
-      throw AuthException(e.toString());
+    } catch (e, stackTrace) {
+      _logUnexpectedFailure('sendPasswordResetEmail', e, stackTrace);
+      throw const AuthException(
+        'An unexpected authentication error occurred. Please try again.',
+        code: 'unexpected-error',
+      );
     }
   }
 
@@ -105,9 +121,14 @@ class FirebaseAuthService implements AuthService {
     try {
       await _auth.signOut();
     } on fb.FirebaseAuthException catch (e) {
+      _logFirebaseFailure('signOut', e);
       throw AuthException.fromFirebaseException(e);
-    } catch (e) {
-      throw AuthException(e.toString());
+    } catch (e, stackTrace) {
+      _logUnexpectedFailure('signOut', e, stackTrace);
+      throw const AuthException(
+        'An unexpected authentication error occurred. Please try again.',
+        code: 'unexpected-error',
+      );
     }
   }
 
@@ -116,9 +137,34 @@ class FirebaseAuthService implements AuthService {
     try {
       await _auth.currentUser?.reload();
     } on fb.FirebaseAuthException catch (e) {
+      _logFirebaseFailure('reloadUser', e);
       throw AuthException.fromFirebaseException(e);
-    } catch (e) {
-      throw AuthException(e.toString());
+    } catch (e, stackTrace) {
+      _logUnexpectedFailure('reloadUser', e, stackTrace);
+      throw const AuthException(
+        'An unexpected authentication error occurred. Please try again.',
+        code: 'unexpected-error',
+      );
     }
+  }
+
+  void _logFirebaseFailure(String operation, fb.FirebaseAuthException error) {
+    if (!kDebugMode) return;
+    debugPrint(
+      '[FirebaseAuthService] $operation failed: '
+      'code=${error.code}, message=${error.message}',
+    );
+  }
+
+  void _logUnexpectedFailure(
+    String operation,
+    Object error,
+    StackTrace stackTrace,
+  ) {
+    if (!kDebugMode) return;
+    debugPrint(
+      '[FirebaseAuthService] $operation failed: type=${error.runtimeType}',
+    );
+    debugPrintStack(stackTrace: stackTrace);
   }
 }
