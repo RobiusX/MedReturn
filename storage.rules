@@ -1,0 +1,39 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isValidImage() {
+      return request.resource.size < 5 * 1024 * 1024 // 5MB limit
+          && request.resource.contentType.matches('image/.*');
+    }
+
+    // Medicine donation photo uploads
+    match /donations/{donationId}/{fileName} {
+      allow read: if isAuthenticated();
+      // Only authenticated users can upload donation images with valid size and mime type
+      allow write: if isAuthenticated() && isValidImage();
+    }
+
+    // User profile avatar photos
+    match /avatars/{userId}/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner(userId) && isValidImage();
+    }
+
+    // Default: Deny all other access
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
+

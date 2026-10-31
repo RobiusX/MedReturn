@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
+
 import '../core/constants/app_strings.dart';
 import '../core/theme/app_theme.dart';
+import 'routes.dart';
 
 /// Root application widget for MedReturn.
 ///
-/// Configures the MaterialApp with theming, routing, and
-/// top-level application settings. All feature screens will
-/// be connected through the routing configuration.
+/// Configured with centralized routes from `AppRoutes`, Material 3 theming,
+/// and safe handling for unknown routes.
 class MedReturnApp extends StatelessWidget {
   const MedReturnApp({super.key});
 
@@ -18,12 +19,9 @@ class MedReturnApp extends StatelessWidget {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.light,
-      home: const Scaffold(
-        body: Center(
-          child: Text(AppStrings.appName),
-        ),
-      ),
+      initialRoute: AppRoutes.login,
+      onGenerateRoute: AppRoutes.onGenerateRoute,
+      onUnknownRoute: AppRoutes.onUnknownRoute,
     );
   }
 }
-

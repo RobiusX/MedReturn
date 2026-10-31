@@ -1,0 +1,131 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =========================================================================
+    // HELPER SECURITY FUNCTIONS
+    // =========================================================================
+
+    /// Returns true if the user is authenticated with Firebase Auth.
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    /// Returns true if the authenticated user is accessing their own resource.
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    /// Fetches the user profile document from Firestore.
+    function getUserDoc(userId) {
+      return get(/databases/$(database)/documents/users/$(userId));
+    }
+
+    /// Checks if the requesting user has a specific role.
+    function hasRole(role) {
+      return isAuthenticated() && 
+        getUserDoc(request.auth.uid).data.role == role;
+    }
+
+    /// Checks if the requesting user is an administrator.
+    function isAdmin() {
+      return hasRole('admin');
+    }
+
+    /// Checks if the requesting user is a verified pharmacist.
+    function isPharmacist() {
+      return hasRole('pharmacist') && getUserDoc(request.auth.uid).data.isVerified == true;
+    }
+
+    /// Checks if the requesting user is a verified clinic.
+    function isClinic() {
+      return hasRole('clinic') && getUserDoc(request.auth.uid).data.isVerified == true;
+    }
+
+    // =========================================================================
+    // 1. USERS COLLECTION
+    // =========================================================================
+    // Security Rule: Users can never self-assign privileged roles (admin, pharmacist, clinic).
+    // Initial self-registration is strictly restricted to 'donor'.
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (isOwner(userId) || isPharmacist() || isAdmin());
+      
+      // On creation, a new user can ONLY register with the unprivileged 'donor' role.
+      // Privileged roles must be provisioned via admin console or backend function.
+      allow create: if isOwner(userId) 
+                    && request.resource.data.role == 'donor'
+                    && request.resource.data.isVerified == false;
+
+      // Users can update their basic profile info, but CANNOT modify their role or verification status.
+      allow update: if isOwner(userId)
+                    && request.resource.data.role == resource.data.role
+                    && request.resource.data.isVerified == resource.data.isVerified;
+
+      allow delete: if isAdmin();
+    }
+
+    // =========================================================================
+    // 2. MEDICINE DONATIONS COLLECTION
+    // =========================================================================
+    // Security Rule: Donors can only submit medicines with 'pending' status.
+    // Unapproved medicines can NEVER be directly marked 'verified' or 'available'.
+    match /donations/{donationId} {
+      // Authenticated users (donors, clinics, pharmacists) can read donation listings.
+      allow read: if isAuthenticated();
+
+      // Donors can create donations, but initial status MUST be 'pending'
+      allow create: if isAuthenticated()
+                    && request.resource.data.donorId == request.auth.uid
+                    && request.resource.data.status == 'pending'
+                    && request.resource.data.isApproved == false;
+
+      // Only verified pharmacists or admins can change approval status or verify medicine.
+      // Donors can only update their own donation if it is still 'pending'.
+      allow update: if (isPharmacist() || isAdmin()) ||
+                       (isOwner(resource.data.donorId) 
+                        && resource.data.status == 'pending'
+                        && request.resource.data.status == 'pending'
+                        && request.resource.data.isApproved == false);
+
+      allow delete: if isAdmin() || (isOwner(resource.data.donorId) && resource.data.status == 'pending');
+    }
+
+    // =========================================================================
+    // 3. MEDICINE INVENTORY (DISTRIBUTION POOL)
+    // =========================================================================
+    // Security Rule: Only verified, approved medicines can be distributed to clinics.
+    match /inventory/{itemId} {
+      allow read: if isAuthenticated();
+      
+      // Only pharmacists or admins can add or modify distribution inventory items.
+      allow write: if isPharmacist() || isAdmin();
+    }
+
+    // =========================================================================
+    // 4. CLINIC REQUESTS & MATCHES
+    // =========================================================================
+    match /requests/{requestId} {
+      allow read: if isAuthenticated();
+      allow create: if isClinic() && request.resource.data.clinicId == request.auth.uid;
+      allow update: if (isClinic() && resource.data.clinicId == request.auth.uid) || isPharmacist() || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // =========================================================================
+    // 5. AUDIT LOGS
+    // =========================================================================
+    // Append-only tamper-evident logs for sensitive operations.
+    match /audit_logs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated();
+      allow update, delete: if false; // Audit logs can never be modified or deleted
+    }
+
+    // Default: Deny all other collections by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+
